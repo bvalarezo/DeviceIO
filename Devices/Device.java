@@ -1,3 +1,13 @@
+/**
+ * Name: Bryan Valarezo
+ * StudentID: 110362410
+ * 
+ * I pledge my honor that all parts of this project were done by me individually, without 
+ * collaboration with anyone, and without consulting any external sources that provide 
+ * full or partial solutions to a similar project. 
+ * I understand that breaking this pledge will result in an “F” for the entire course.
+ */
+
 package osp.Devices;
 
 /**
@@ -19,6 +29,12 @@ import java.util.*;
 
 public class Device extends IflDevice
 {
+
+    private DeviceQueue currentIorbQueuePtr;
+    private DeviceQueue iorbQ1;
+    private DeviceQueue iorbQ2;
+    private DeviceQueue iorbQ3;
+
     /**
         This constructor initializes a device with the provided parameters.
 	As a first statement it must have the following:
@@ -31,8 +47,13 @@ public class Device extends IflDevice
     */
     public Device(int id, int numberOfBlocks)
     {
-        // your code goes here
-
+        super(id, numberOfBlocks);
+        /* Init all of the Queues*/
+        iorbQ1 = new DeviceQueue();
+        iorbQ2 = new DeviceQueue();
+        iorbQ3 = new DeviceQueue();
+        /* set up the current Q */
+        currentIorbQueuePtr = iorbQ1;
     }
 
     /**
@@ -68,6 +89,21 @@ public class Device extends IflDevice
     {
         // your code goes here
 
+        //put iorb on the waiting Q
+
+        //first lock the page PageTableEntry.lock()
+        //increment iorbCount incrementIORBCount()
+        //set iorb's cylinder (setCylinder) to cylinder with diskblk
+        //getStatus() of threadCB
+            //if ThreadKill: return Failure
+        //check if device.isBusy()
+            //if false
+                //start I/O operation with startIO()
+                //return Success
+            //else
+                //put iorb on deviceQ
+                //return Success
+        //Within each Q, requests are processed using SCAN
     }
 
     /**
@@ -79,7 +115,13 @@ public class Device extends IflDevice
     public IORB do_dequeueIORB()
     {
         // your code goes here
-
+        // This methods chooses the requests to be serviced
+        // implement scheduling
+        // dont unlock page
+        // get iorb from the Q
+            //if empty: return null
+        // else
+            //process
     }
 
     /**
@@ -98,7 +140,13 @@ public class Device extends IflDevice
     public void do_cancelPendingIO(ThreadCB thread)
     {
         // your code goes here
-
+        //for each iorb in thread:
+            //unlock buffer page
+            //decrement the IORB count
+            //close the open-file handle in iorb
+                //check for closePending Flag
+                    //if true and getIORBCOUNT() == 0:
+                        //file handle must be close()
     }
 
     /** Called by OSP after printing an error message. The student can
@@ -137,3 +185,32 @@ public class Device extends IflDevice
 /*
       Feel free to add local classes to improve the readability of your code
 */
+
+/*
+ * Feel free to add local classes to improve the readability of your code
+ */
+class DeviceQueue {
+
+    private GenericList queue;
+
+    public DeviceQueue() {
+        this.queue = new GenericList();
+    }
+
+    public boolean isEmpty() {
+        return queue.isEmpty();
+    }
+
+    public final synchronized void pushObjToQueue(Object obj) {
+        queue.insert(obj);
+    }
+
+    public final synchronized Object popObjectFromQueue() {
+        return queue1.removeTail();
+    }
+
+    public final synchronized Object removeObjectFromQueue(int queue, ThreadCB obj) {
+        return queue1.remove(obj);
+    }
+
+}

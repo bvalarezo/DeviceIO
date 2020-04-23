@@ -1,3 +1,13 @@
+/**
+ * Name: Bryan Valarezo
+ * StudentID: 110362410
+ * 
+ * I pledge my honor that all parts of this project were done by me individually, without 
+ * collaboration with anyone, and without consulting any external sources that provide 
+ * full or partial solutions to a similar project. 
+ * I understand that breaking this pledge will result in an “F” for the entire course.
+ */
+
 package osp.Devices;
 import java.util.*;
 import osp.IFLModules.*;
@@ -43,7 +53,31 @@ public class DiskInterruptHandler extends IflDiskInterruptHandler
     public void do_handleInterrupt()
     {
         // your code goes here
-
+        // get interrupt (IORB)InterruptVector.getEvent()
+        // get iorb
+        // get thread
+        // get page
+        // get openfile handle
+        // decrementIORBCount() of OpenFile
+        //If OpenFile has closePending and getIORBCount() == 0:
+            //close the file(see do_cancelPendingIO)
+        // unlock the page
+        // if I/O is not a page swap (getDeviceID() != SwapDeviceID)
+        // and the thread is not dead
+        // and the Task is still alive
+            //set the frame as referenced (setReferenced)
+            //if Read:
+                //set frame as dirty
+        //If I/O was swap and task+thread of iorb are alive
+            //the frame is set clean
+        //if the task is dead (TaskTerm) and frame from iorb was reserved
+            //frame must be setUnreserved()
+        //notify the threads notfiyThreads()
+        //device is set idle
+        //device must dequeueIORB()
+            //if non null: restart device with iorb
+        //dispatch()
+        
     }
 
 
