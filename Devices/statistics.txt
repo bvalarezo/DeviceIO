@@ -1,0 +1,134 @@
+##############################_MY STATISTICS_############################################################
+DEVICES:
+  Device 0: Swap Device   (mount point: /vm/)
+	    Number of pages read = 1570
+	    Number of pages written = 401
+	    Average number of cylinders swept per disk access = 4
+	      Total number of cylinders swept = 8837
+	    Service time per I/O request: 773
+	    Device queue:
+		IORB(Id(2092),Device(0),Page(29:14/20),Diskblock(349),FileWrite,Openfile(114:14/0),Thread(152:13/W2))
+		IORB(Id(2093),Device(0),Page(34:14/10),Diskblock(354),FileRead,Openfile(114:14/0),Thread(133:14/W2))
+		IORB(Id(2094),Device(0),Page(0:12/26),Diskblock(128),FileRead,Openfile(110:12/0),Thread(138:12/W2))
+		IORB(Id(2099),Device(0),Page(0:11/27),Diskblock(192),FileRead,Openfile(98:11/0),Thread(115:11/W2))
+		IORB(Id(2100),Device(0),Page(40:13/13),Diskblock(296),FileRead,Openfile(112:13/0),Thread(157:13/W2))
+		IORB(Id(2101),Device(0),Page(9:14/24),Diskblock(329),FileWrite,Openfile(114:14/0),Thread(153:14/W2))
+  Device 1: Disk   (mount point: /etc/go/)
+	    Number of pages read = 38
+	    Number of pages written = 28
+	    Average number of cylinders swept per disk access = 1
+	      Total number of cylinders swept = 72
+	    Service time per I/O request: 359
+	    Device queue:  Empty
+  Device 2: Disk   (mount point: /etc/)
+	    Number of pages read = 19
+	    Number of pages written = 11
+	    Average number of cylinders swept per disk access = 1
+	      Total number of cylinders swept = 35
+	    Service time per I/O request: 630
+	    Device queue:  Empty
+
+TASKS and THREADS:
+  CPU Utilization: 75.625595%
+  Average service time per thread: 28637.88
+  Average normalized service time per thread: 0.06587513
+
+##############################_DEMO STATISTICS_############################################################
+DEVICES:
+  Device 0: Swap Device   (mount point: /vm/)
+	    Number of pages read = 1251
+	    Number of pages written = 278
+	    Average number of cylinders swept per disk access = 6
+	      Total number of cylinders swept = 9514
+	    Service time per I/O request: 701
+	    Device queue:  Empty
+  Device 1: Disk   (mount point: /etc/go/)
+	    Number of pages read = 20
+	    Number of pages written = 35
+	    Average number of cylinders swept per disk access = 1
+	      Total number of cylinders swept = 66
+	    Service time per I/O request: 337
+	    Device queue:  Empty
+  Device 2: Disk   (mount point: /etc/)
+	    Number of pages read = 16
+	    Number of pages written = 12
+	    Average number of cylinders swept per disk access = 1
+	      Total number of cylinders swept = 29
+	    Service time per I/O request: 826
+	    Device queue:  Empty
+
+TASKS and THREADS:
+  CPU Utilization: 58.426796%
+  Average service time per thread: 35359.54
+  Average normalized service time per thread: 0.047114704
+
+##############################_Explanation_############################################################
+Total number of tracks swept on each device.
+    •My Implementation
+        Device 0: 8837
+        Device 1: 72
+    	Device 2: 35
+    •Demo
+        Device 0: 9514
+        Device 1: 66
+    	Device 2: 29
+
+For device 0, my implementation had less sweeps than the demo. For device 1 & 2, my implementation had more sweeps than the demo. Device 0(swap space) has lower amount of sweeps than the demo is because the demo uses a FIFO stretegy. Page swaps are depenedent on the page replacement strategy and can access high or low tracks. With the SCAN strategy, we can garuntee that the queue will service in only one direction(starting from lowest to highest or highest to lowest). 
+
+This statistic is unrealiable to measure since it is the total sweeps in an OSP run. My implementation was able to service more read and write I/O requests than the demo, so the total number of sweeps will be greater(since there are more requests serviced in general).
+
+Average number of tracks swept per I/O request.
+    •My Implementation
+        Device 0: 4
+        Device 1: 1
+    	Device 2: 1
+    •Demo
+        Device 0: 6
+        Device 1: 1
+    	Device 2: 1
+
+For device 0, my implementation had less average sweeps than the demo. For device 1 & 2, my implementation had the same average sweeps as the demo. My implementation is able to move the head less than the demo. This is because of the SCAN strategy(as stated above). This is an improvement because less time is spent waiting on the head to stop moving. FIFO is too sporadic and the head can move to any track, and take a variable amount of time moving. SCAN minimizes the moving time since we will service the next cylinder moving foward(or backwards).
+
+Average turnaround time for I/O requests.
+	•My Implementation
+        Device 0: 773
+        Device 1: 359
+    	Device 2: 630
+    •Demo
+        Device 0: 701
+        Device 1: 337
+    	Device 2: 826
+
+While my implementation had slightly larger turnaround time for devices 0 & 1 than the demo, we see my implementation have better turnaround time for device 2. This is alright to overlook, since this is not SCAN's main goal or advantage. In fact, this is SCAN's disadvantge since the swap device and device 1 (likely the device where the O.S stores its files) has to service requests more frequently. This results in long waiting time for requests for locations just visited by disk arm.
+
+System throughput.
+	•My Implementation
+		CPU Utilization: 75.625595%
+		Average service time per thread: 28637.88
+		Average normalized service time per thread: 0.06587513
+			Device 0: 
+				Number of pages read = 1570
+	    		Number of pages written = 401
+			Device 1:
+				Number of pages read = 38
+	    		Number of pages written = 28
+			Device 2:
+				Number of pages read = 19
+	    		Number of pages written = 11 
+    •Demo
+		CPU Utilization: 58.426796%
+		Average service time per thread: 35359.54
+		Average normalized service time per thread: 0.047114704
+			Device 0: 
+				Number of pages read = 1251
+				Number of pages written = 278
+			Device 1:
+				Number of pages read = 20
+				Number of pages written = 35
+			Device 2:
+				Number of pages read = 16
+				Number of pages written = 12
+
+Here we see the SCAN algorithm shine compared to FIFO from the demo. The throughput in my implementation outclasses the demo and is able to complete more read/write requests on the swap device, which is great for memory. My implementation also has a higher CPU utilization than the demo. This is because the CPU will always have a thread to execute since it spends less time waiting on the I/O request to finish. This is because the disk will respond with a completed I/O request much quicker than the demo's FIFO strategy.
+
+
