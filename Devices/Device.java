@@ -84,8 +84,6 @@ public class Device extends IflDevice {
      * @OSPProject Devices
      */
     public int do_enqueueIORB(IORB iorb) {
-        // MyOut.print(this, "Entering Student Method..." + new Object() {
-        // }.getClass().getEnclosingMethod().getName());
         int retval = FAILURE, blockNumber, cylinder;
         PageTableEntry page = iorb.getPage();
         OpenFile openFile = iorb.getOpenFile();
@@ -128,8 +126,6 @@ public class Device extends IflDevice {
      * @OSPProject Devices
      */
     public IORB do_dequeueIORB() {
-        // MyOut.print(this, "Entering Student Method..." + new Object() {
-        // }.getClass().getEnclosingMethod().getName());
         DeviceQueue processQ;
         IORB returnIORB;
         /* check if the iorbQueue is empty */
@@ -199,8 +195,6 @@ public class Device extends IflDevice {
      * @OSPProject Devices
      */
     public void do_cancelPendingIO(ThreadCB thread) {
-        // MyOut.print(this, "Entering Student Method..." + new Object() {
-        // }.getClass().getEnclosingMethod().getName());
         Enumeration e;
         IORB ptr;
         /* check if the thread has indeed been Killed */
@@ -261,8 +255,6 @@ public class Device extends IflDevice {
      */
 
     private int getCylinderFromBlockNumber(int blockNumber) {
-        // MyOut.print(this, "Entering Student Method..." + new Object() {
-        // }.getClass().getEnclosingMethod().getName());
         int offsetBits, blockSize, sectorSize, sectorsPerBlock, sectorsPerTrack, blocksPerTrack, totalCylinders,
                 tracksPerCylinders, returnCylinder;
         Disk d = ((Disk) this);
@@ -288,8 +280,6 @@ public class Device extends IflDevice {
     }
 
     private DeviceQueue getOpenQueuePtr() {
-        // MyOut.print(this, "Entering Student Method..." + new Object() {
-        // }.getClass().getEnclosingMethod().getName());
         if (this.openQueuePtr.isOpen()) {
             return this.openQueuePtr;
         } else {
@@ -317,8 +307,6 @@ public class Device extends IflDevice {
     }
 
     private boolean findNewOpenQueuePtr() {
-        // MyOut.print(this, "Entering Student Method..." + new Object() {
-        // }.getClass().getEnclosingMethod().getName());
         if (this.openQueuePtr.isOpen())
             return true;
         else {

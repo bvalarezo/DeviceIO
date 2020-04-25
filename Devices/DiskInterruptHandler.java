@@ -48,8 +48,6 @@ public class DiskInterruptHandler extends IflDiskInterruptHandler {
      * @OSPProject Devices
      */
     public void do_handleInterrupt() {
-        // MyOut.print(this, "Entering Student Method..." + new Object() {
-        // }.getClass().getEnclosingMethod().getName());
         IORB iorb = (IORB) InterruptVector.getEvent(), nextIorb;
         ThreadCB thread = iorb.getThread();
         PageTableEntry page = iorb.getPage();
