@@ -31,7 +31,8 @@ import java.util.*;
 public class Device extends IflDevice {
 
     private ArrayList<DeviceQueue> queueList;
-    private DeviceQueue queuePtr;
+    private DeviceQueue openQueuePtr;
+    private DeviceQueue processingQueuePtr;
 
     /**
      * This constructor initializes a device with the provided parameters. As a
@@ -45,17 +46,12 @@ public class Device extends IflDevice {
      */
     public Device(int id, int numberOfBlocks) {
         super(id, numberOfBlocks);
-        int i;
         iorbQueue = new GenericList();
         queueList = new ArrayList<DeviceQueue>();
         /* Init the first of the Queues */
         queueList.add(0, new DeviceQueue(0, true));
-        // for (i = 0; i < numberOfQueues; i++) {
-        // queueList.add(i, new DeviceQueue(i, true));
-        // }
-        // iorbQ3 = new DeviceQueue();
-        /* set up the current Q */
-        queuePtr = queueList.get(0);
+        openQueuePtr = queueList.get(0);
+        processingQueuePtr = null;
     }
 
     /**
@@ -86,6 +82,8 @@ public class Device extends IflDevice {
      * @OSPProject Devices
      */
     public int do_enqueueIORB(IORB iorb) {
+        // MyOut.print(this, "Entering Student Method..." + new Object() {
+        // }.getClass().getEnclosingMethod().getName());
         int retval = FAILURE, blockNumber, cylinder;
         PageTableEntry page = iorb.getPage();
         OpenFile openFile = iorb.getOpenFile();
@@ -115,21 +113,10 @@ public class Device extends IflDevice {
             /* device is busy */
 
             /* put the iorb in the queue */
-            getQueuePtr().iorbInsert(iorb);
+            getOpenQueuePtr().iorbInsert(iorb);
             ((GenericList) iorbQueue).append(iorb);
         }
         return retval;
-        // your code goes here
-        // put iorb on the waiting Q
-
-        // check if device.isBusy()
-        // if false
-        // start I/O operation with startIO()
-        // return Success
-        // else
-        // put iorb on deviceQ
-        // return Success
-        // Within each Q, requests are processed using SCAN
     }
 
     /**
@@ -139,25 +126,51 @@ public class Device extends IflDevice {
      * @OSPProject Devices
      */
     public IORB do_dequeueIORB() {
-        DeviceQueue q = getQueuePtr();
+        // MyOut.print(this, "Entering Student Method..." + new Object() {
+        // }.getClass().getEnclosingMethod().getName());
+        DeviceQueue processQ;
         IORB returnIORB;
         /* check if the iorbQueue is empty */
         if (iorbQueue.isEmpty())
             return null;
 
-        /* check if the current queue is empty */
-        if (q.isEmpty()) {
-            /* switch to a non empty queue */
-            if ((q = getNonEmptyQueue()) == null)
+        /* check if the processing queue ptr is null */
+        processQ = getProcessingQueuePtr();
+        if (processQ == null) {
+            /* close one of the open queues */
+            for (DeviceQueue q : queueList) {
+                if (!q.isEmpty() && q.isOpen()) {
+                    setProcessingQueuePtr(q);
+                    processQ = getProcessingQueuePtr();
+                    break;
+                }
+            }
+            /* no open queues to process */
+            if (processQ == null)
+                return null;
+        }
+        /* check if the processing queue is empty */
+        if (processQ.isEmpty()) {
+            /* open this processQ */
+            processQ.setOpen(true);
+            /* switch to a non empty one */
+            for (DeviceQueue q : queueList) {
+                if (!q.isEmpty() && q.isOpen()) {
+                    setProcessingQueuePtr(q);
+                    processQ = getProcessingQueuePtr();
+                    break;
+                }
+            }
+            /* no non-empty queues to process */
+            if (processQ.isEmpty())
                 return null;
         }
 
         /* lets process this Queue */
-        q.setOpen(false);
-        changePtrToOpenQueue();
 
         /* lets get the iorb */
-        returnIORB = (IORB) q.removeHead();
+        returnIORB = (IORB) processQ.removeHead();
+        ((GenericList) iorbQueue).remove(returnIORB);
         return returnIORB;
         // .remove()
         // your code goes here
@@ -183,6 +196,8 @@ public class Device extends IflDevice {
      * @OSPProject Devices
      */
     public void do_cancelPendingIO(ThreadCB thread) {
+        // MyOut.print(this, "Entering Student Method..." + new Object() {
+        // }.getClass().getEnclosingMethod().getName());
         Enumeration e;
         IORB ptr;
         /* check if the thread has indeed been Killed */
@@ -190,8 +205,8 @@ public class Device extends IflDevice {
             return;
 
         /* iterate through all of the queues */
-        for (DeviceQueue deviceQueue : queueList) {
-            e = deviceQueue.forwardIterator();
+        for (DeviceQueue q : queueList) {
+            e = q.forwardIterator();
             while (e.hasMoreElements()) {
                 ptr = (IORB) e.nextElement();
                 /* if this iorb is from the killed thread */
@@ -206,17 +221,11 @@ public class Device extends IflDevice {
                     if (ptr.getOpenFile().getIORBCount() == 0 && ptr.getOpenFile().closePending)
                         ptr.getOpenFile().close();
                     /* remove this iorb from the queue's */
-                    deviceQueue.remove(ptr);
+                    q.remove(ptr);
                     ((GenericList) iorbQueue).remove(ptr);
                 }
             }
         }
-        // unlock buffer page
-        // decrement the IORB count
-        // close the open-file handle in iorb
-        // check for closePending Flag
-        // if true and getIORBCOUNT() == 0:
-        // file handle must be close()
     }
 
     /**
@@ -249,6 +258,8 @@ public class Device extends IflDevice {
      */
 
     private int getCylinderFromBlockNumber(int blockNumber) {
+        // MyOut.print(this, "Entering Student Method..." + new Object() {
+        // }.getClass().getEnclosingMethod().getName());
         int offsetBits, blockSize, sectorSize, sectorsPerBlock, sectorsPerTrack, blocksPerTrack, totalCylinders,
                 tracksPerCylinders, returnCylinder;
         Disk d = ((Disk) this);
@@ -273,53 +284,65 @@ public class Device extends IflDevice {
         return returnCylinder;
     }
 
-    private DeviceQueue getQueuePtr() {
-        if (this.queuePtr.isOpen()) {
-            return this.queuePtr;
+    private DeviceQueue getOpenQueuePtr() {
+        // MyOut.print(this, "Entering Student Method..." + new Object() {
+        // }.getClass().getEnclosingMethod().getName());
+        if (this.openQueuePtr.isOpen()) {
+            return this.openQueuePtr;
         } else {
-            if (changePtrToOpenQueue())
-                return this.queuePtr;
+            /* find a new open Queue */
+            if (findNewOpenQueuePtr())
+                return this.openQueuePtr;
             else {
-                /* create a new queue */
-                DeviceQueue newQ = new DeviceQueue(queueList.get(queueList.size() - 1).getId() + 1, true);
-                queueList.add(newQ);
-                this.queuePtr = newQ;
-                return this.queuePtr;
+                /* try to open a closed but empty queue */
+                for (DeviceQueue q : queueList) {
+                    if (q.isEmpty()) {
+                        q.setOpen(true);
+                    }
+                }
+                if (findNewOpenQueuePtr())
+                    return this.openQueuePtr;
+                else {
+                    /* create a new queue */
+                    DeviceQueue newQ = new DeviceQueue(queueList.get(queueList.size() - 1).getId() + 1, true);
+                    queueList.add(newQ);
+                    this.openQueuePtr = newQ;
+                    return this.openQueuePtr;
+                }
             }
         }
     }
 
-    private boolean changePtrToOpenQueue() {
-        for (DeviceQueue q : queueList) {
-            if (q.isOpen()) {
-                this.queuePtr = q;
-                return true;
+    private boolean findNewOpenQueuePtr() {
+        // MyOut.print(this, "Entering Student Method..." + new Object() {
+        // }.getClass().getEnclosingMethod().getName());
+        if (this.openQueuePtr.isOpen())
+            return true;
+        else {
+            for (DeviceQueue q : queueList) {
+                if (q.isOpen()) {
+                    setOpenQueuePtr(q);
+                    return true;
+                }
             }
+            /* if here; no queue is open */
+            return false;
         }
-        /* if here; no queue is open */
-        return false;
     }
 
-    private void setQueuePtr(DeviceQueue q) {
-        this.queuePtr = q;
+    private void setOpenQueuePtr(DeviceQueue q) {
+        this.openQueuePtr = q;
+        this.openQueuePtr.setOpen(true);
     }
 
-    private void closeCurrentQueuePtr() {
-        this.queuePtr.setOpen(false);
+    private DeviceQueue getProcessingQueuePtr() {
+        return processingQueuePtr;
     }
 
-    private DeviceQueue getNonEmptyQueue() {
-        for (DeviceQueue q : queueList) {
-            if (!q.isEmpty()) {
-                return q;
-            }
-        }
-        return null;
+    private void setProcessingQueuePtr(DeviceQueue processingQueuePtr) {
+        this.processingQueuePtr = processingQueuePtr;
+        this.processingQueuePtr.setOpen(false);
     }
-
-    /*
-     * Feel free to add local classes to improve the readability of your code
-     */
 
     /*
      * Feel free to add local classes to improve the readability of your code

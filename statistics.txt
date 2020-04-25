@@ -1,0 +1,72 @@
+##############################_MY STATISTICS_############################################################
+DEVICES:
+  Device 0: Swap Device   (mount point: /vm/)
+	    Number of pages read = 1570
+	    Number of pages written = 401
+	    Average number of cylinders swept per disk access = 4
+	      Total number of cylinders swept = 8837
+	    Service time per I/O request: 773
+	    Device queue:
+		IORB(Id(2092),Device(0),Page(29:14/20),Diskblock(349),FileWrite,Openfile(114:14/0),Thread(152:13/W2))
+		IORB(Id(2093),Device(0),Page(34:14/10),Diskblock(354),FileRead,Openfile(114:14/0),Thread(133:14/W2))
+		IORB(Id(2094),Device(0),Page(0:12/26),Diskblock(128),FileRead,Openfile(110:12/0),Thread(138:12/W2))
+		IORB(Id(2099),Device(0),Page(0:11/27),Diskblock(192),FileRead,Openfile(98:11/0),Thread(115:11/W2))
+		IORB(Id(2100),Device(0),Page(40:13/13),Diskblock(296),FileRead,Openfile(112:13/0),Thread(157:13/W2))
+		IORB(Id(2101),Device(0),Page(9:14/24),Diskblock(329),FileWrite,Openfile(114:14/0),Thread(153:14/W2))
+  Device 1: Disk   (mount point: /etc/go/)
+	    Number of pages read = 38
+	    Number of pages written = 28
+	    Average number of cylinders swept per disk access = 1
+	      Total number of cylinders swept = 72
+	    Service time per I/O request: 359
+	    Device queue:  Empty
+  Device 2: Disk   (mount point: /etc/)
+	    Number of pages read = 19
+	    Number of pages written = 11
+	    Average number of cylinders swept per disk access = 1
+	      Total number of cylinders swept = 35
+	    Service time per I/O request: 630
+	    Device queue:  Empty
+
+TASKS and THREADS:
+  CPU Utilization: 75.625595%
+  Average service time per thread: 28637.88
+  Average normalized service time per thread: 0.06588812
+
+##############################_DEMO STATISTICS_############################################################
+DEVICES:
+  Device 0: Swap Device   (mount point: /vm/)
+	    Number of pages read = 1251
+	    Number of pages written = 278
+	    Average number of cylinders swept per disk access = 6
+	      Total number of cylinders swept = 9514
+	    Service time per I/O request: 701
+	    Device queue:  Empty
+  Device 1: Disk   (mount point: /etc/go/)
+	    Number of pages read = 20
+	    Number of pages written = 35
+	    Average number of cylinders swept per disk access = 1
+	      Total number of cylinders swept = 66
+	    Service time per I/O request: 337
+	    Device queue:  Empty
+  Device 2: Disk   (mount point: /etc/)
+	    Number of pages read = 16
+	    Number of pages written = 12
+	    Average number of cylinders swept per disk access = 1
+	      Total number of cylinders swept = 29
+	    Service time per I/O request: 826
+	    Device queue:  Empty
+
+TASKS and THREADS:
+  CPU Utilization: 58.426796%
+  Average service time per thread: 35359.54
+  Average normalized service time per thread: 0.047114704
+
+##############################_Explanation_############################################################
+The total number of tracks swept on each device:
+    •My Implementation
+        Swapped In: 1088
+        Swapped Out: 511
+    •Demo
+        Swapped In: 1283
+        Swapped Out: 316
