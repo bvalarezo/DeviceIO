@@ -33,6 +33,7 @@ public class Device extends IflDevice {
     private ArrayList<DeviceQueue> queueList;
     private DeviceQueue openQueuePtr;
     private DeviceQueue processingQueuePtr;
+    private boolean forwardDirection;
 
     /**
      * This constructor initializes a device with the provided parameters. As a
@@ -52,6 +53,7 @@ public class Device extends IflDevice {
         queueList.add(0, new DeviceQueue(0, true));
         openQueuePtr = queueList.get(0);
         processingQueuePtr = null;
+        forwardDirection = true;
     }
 
     /**
@@ -164,23 +166,24 @@ public class Device extends IflDevice {
             /* no non-empty queues to process */
             if (processQ.isEmpty())
                 return null;
+
+            /* Flip the direction if at the ends */
+            flipDirection();
         }
 
         /* lets process this Queue */
 
+        /* direction dependent */
+        if (isForwardDirection())
+            /* Scan forwards */
+            returnIORB = (IORB) processQ.removeHead();
+        else
+            /* Scan backwards */
+            returnIORB = (IORB) processQ.removeTail();
+
         /* lets get the iorb */
-        returnIORB = (IORB) processQ.removeHead();
         ((GenericList) iorbQueue).remove(returnIORB);
         return returnIORB;
-        // .remove()
-        // your code goes here
-        // This methods chooses the requests to be serviced
-        // implement scheduling
-        // dont unlock page
-        // get iorb from the Q
-        // if empty: return null
-        // else
-        // process
     }
 
     /**
@@ -342,6 +345,21 @@ public class Device extends IflDevice {
     private void setProcessingQueuePtr(DeviceQueue processingQueuePtr) {
         this.processingQueuePtr = processingQueuePtr;
         this.processingQueuePtr.setOpen(false);
+    }
+
+    private boolean isForwardDirection() {
+        return forwardDirection;
+    }
+
+    private void setForwardDirection(boolean forwardDirection) {
+        this.forwardDirection = forwardDirection;
+    }
+
+    private void flipDirection() {
+        if (isForwardDirection())
+            setForwardDirection(false);
+        else
+            setForwardDirection(true);
     }
 
     /*
