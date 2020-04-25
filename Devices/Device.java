@@ -186,7 +186,7 @@ public class Device extends IflDevice {
         Enumeration e;
         IORB ptr;
         /* check if the thread has indeed been Killed */
-        if (thread.getStatus() != ThreadKill)
+        if (thread.getStatus() != ThreadCB.ThreadKill)
             return;
 
         /* iterate through all of the queues */
@@ -203,7 +203,7 @@ public class Device extends IflDevice {
                     ptr.getOpenFile().decrementIorbCount();
 
                     /* try to close the open-file handle */
-                    if (ptr.getOpenFile().getIORBcount() == 0 && iorb.getOpenFile().closePending)
+                    if (ptr.getOpenFile().getIORBcount() == 0 && ptr.getOpenFile().closePending)
                         ptr.getOpenFile().close();
                     /* remove this iorb from the queue's */
                     deviceQueue.remove(ptr);
