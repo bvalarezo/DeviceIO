@@ -88,7 +88,7 @@ public class Device extends IflDevice {
     public int do_enqueueIORB(IORB iorb) {
         int retval = FAILURE, blockNumber, cylinder;
         PageTableEntry page = iorb.getPage();
-        OpenFile openFile = iorb.getPage();
+        OpenFile openFile = iorb.getOpenFile();
         ThreadCB thread = iorb.getThread();
         blockNumber = iorb.getBlockNumber();
 
@@ -183,8 +183,34 @@ public class Device extends IflDevice {
      * @OSPProject Devices
      */
     public void do_cancelPendingIO(ThreadCB thread) {
-        // your code goes here
-        // for each iorb in thread:
+        Enumeration e;
+        IORB ptr;
+        /* check if the thread has indeed been Killed */
+        if (thread.getStatus() != ThreadKill)
+            return;
+
+        /* iterate through all of the queues */
+        for (DeviceQueue deviceQueue : queueList) {
+            e = forwardIterator(getHead());
+            while (e.hasMoreElements()) {
+                ptr = e.nextElement();
+                /* if this iorb is from the killed thread */
+                if (ptr.getThread().getId() == thread.getId()) {
+                    /* unlock the page */
+                    ptr.getPage().unlock();
+
+                    /* decrement the iorb count */
+                    ptr.getOpenFile().decrementIorbCount();
+
+                    /* try to close the open-file handle */
+                    if (ptr.getOpenFile().getIORBcount() == 0 && iorb.getOpenFile().closePending)
+                        ptr.getOpenFile().close();
+                    /* remove this iorb from the queue's */
+                    deviceQueue.remove(ptr);
+                    ((GenericList) iorbQueue).remove(ptr);
+                }
+            }
+        }
         // unlock buffer page
         // decrement the IORB count
         // close the open-file handle in iorb
