@@ -25,192 +25,332 @@ import osp.Hardware.*;
 import osp.Memory.*;
 import osp.FileSys.*;
 import osp.Tasks.*;
+
 import java.util.*;
 
-public class Device extends IflDevice
-{
+public class Device extends IflDevice {
 
-    private DeviceQueue currentIorbQueuePtr;
-    private DeviceQueue iorbQ1;
-    private DeviceQueue iorbQ2;
-    private DeviceQueue iorbQ3;
+    private ArrayList<DeviceQueue> queueList;
+    private DeviceQueue queuePtr;
 
     /**
-        This constructor initializes a device with the provided parameters.
-	As a first statement it must have the following:
-
-	    super(id,numberOfBlocks);
-
-	@param numberOfBlocks -- number of blocks on device
-
-        @OSPProject Devices
-    */
-    public Device(int id, int numberOfBlocks)
-    {
+     * This constructor initializes a device with the provided parameters. As a
+     * first statement it must have the following:
+     * 
+     * super(id,numberOfBlocks);
+     * 
+     * @param numberOfBlocks -- number of blocks on device
+     * 
+     * @OSPProject Devices
+     */
+    public Device(int id, int numberOfBlocks) {
         super(id, numberOfBlocks);
-        /* Init all of the Queues*/
-        iorbQ1 = new DeviceQueue();
-        iorbQ2 = new DeviceQueue();
-        iorbQ3 = new DeviceQueue();
+        int i;
+        iorbQueue = new GenericList();
+        queueList = new ArrayList<DeviceQueue>();
+        /* Init the first of the Queues */
+        queueList.add(0, new DeviceQueue(0, true));
+        // for (i = 0; i < numberOfQueues; i++) {
+        // queueList.add(i, new DeviceQueue(i, true));
+        // }
+        // iorbQ3 = new DeviceQueue();
         /* set up the current Q */
-        currentIorbQueuePtr = iorbQ1;
+        queuePtr = queueList.get(0);
     }
 
     /**
-       This method is called once at the beginning of the
-       simulation. Can be used to initialize static variables.
-
-       @OSPProject Devices
-    */
-    public static void init()
-    {
+     * This method is called once at the beginning of the simulation. Can be used to
+     * initialize static variables.
+     * 
+     * @OSPProject Devices
+     */
+    public static void init() {
         // your code goes here
 
     }
 
     /**
-       Enqueues the IORB to the IORB queue for this device
-       according to some kind of scheduling algorithm.
-       
-       This method must lock the page (which may trigger a page fault),
-       check the device's state and call startIO() if the 
-       device is idle, otherwise append the IORB to the IORB queue.
+     * Enqueues the IORB to the IORB queue for this device according to some kind of
+     * scheduling algorithm.
+     * 
+     * This method must lock the page (which may trigger a page fault), check the
+     * device's state and call startIO() if the device is idle, otherwise append the
+     * IORB to the IORB queue.
+     * 
+     * @return SUCCESS or FAILURE. FAILURE is returned if the IORB wasn't enqueued
+     *         (for instance, locking the page fails or thread is killed). SUCCESS
+     *         is returned if the IORB is fine and either the page was valid and
+     *         device started on the IORB immediately or the IORB was successfully
+     *         enqueued (possibly after causing pagefault pagefault)
+     * 
+     * @OSPProject Devices
+     */
+    public int do_enqueueIORB(IORB iorb) {
+        int retval = FAILURE, blockNumber, cylinder;
+        PageTableEntry page = iorb.getPage();
+        OpenFile openFile = iorb.getPage();
+        ThreadCB thread = iorb.getThread();
+        blockNumber = iorb.getBlockNumber();
 
-       @return SUCCESS or FAILURE.
-       FAILURE is returned if the IORB wasn't enqueued 
-       (for instance, locking the page fails or thread is killed).
-       SUCCESS is returned if the IORB is fine and either the page was 
-       valid and device started on the IORB immediately or the IORB
-       was successfully enqueued (possibly after causing pagefault pagefault)
-       
-       @OSPProject Devices
-    */
-    public int do_enqueueIORB(IORB iorb)
-    {
+        /* locking the page */
+        if (page.lock() != SUCCESS)
+            return retval;
+
+        /* incrementing the iorb count */
+        openFile.incrementIORBCount();
+
+        /* calculate and set the cylinder */
+        iorb.setCylinder(getCylinderFromBlockNumber(blockNumber));
+
+        /* Double check the thread status, make sure no SIGKILL */
+        if (thread.getStatus() == ThreadCB.ThreadKill)
+            return retval;
+        else
+            retval = SUCCESS;
+
+        /* check if the device is idle */
+        if (!isBusy())
+            startIO(iorb);
+        else {
+            /* device is busy */
+
+            /* put the iorb in the queue */
+            getQueuePtr().iorbInsert(iorb);
+            ((GenericList) iorbQueue).append(iorb);
+        }
+        return retval;
         // your code goes here
+        // put iorb on the waiting Q
 
-        //put iorb on the waiting Q
-
-        //first lock the page PageTableEntry.lock()
-        //increment iorbCount incrementIORBCount()
-        //set iorb's cylinder (setCylinder) to cylinder with diskblk
-        //getStatus() of threadCB
-            //if ThreadKill: return Failure
-        //check if device.isBusy()
-            //if false
-                //start I/O operation with startIO()
-                //return Success
-            //else
-                //put iorb on deviceQ
-                //return Success
-        //Within each Q, requests are processed using SCAN
+        // check if device.isBusy()
+        // if false
+        // start I/O operation with startIO()
+        // return Success
+        // else
+        // put iorb on deviceQ
+        // return Success
+        // Within each Q, requests are processed using SCAN
     }
 
     /**
-       Selects an IORB (according to some scheduling strategy)
-       and dequeues it from the IORB queue.
+     * Selects an IORB (according to some scheduling strategy) and dequeues it from
+     * the IORB queue.
+     * 
+     * @OSPProject Devices
+     */
+    public IORB do_dequeueIORB() {
+        DeviceQueue q = getQueuePtr();
+        IORB returnIORB;
+        /* check if the iorbQueue is empty */
+        if (iorbQueue.isEmpty())
+            return null;
 
-       @OSPProject Devices
-    */
-    public IORB do_dequeueIORB()
-    {
+        /* check if the current queue is empty */
+        if (q.isEmpty()) {
+            /* switch to a non empty queue */
+            if ((q = getNonEmptyQueue()) == null)
+                return null;
+        }
+
+        /* lets process this Queue */
+        q.setOpen(false);
+        changePtrToOpenQueue();
+
+        /* lets get the iorb */
+        returnIORB = q.removeHead();
+        return returnIORB;
+        // .remove()
         // your code goes here
         // This methods chooses the requests to be serviced
         // implement scheduling
         // dont unlock page
         // get iorb from the Q
-            //if empty: return null
+        // if empty: return null
         // else
-            //process
+        // process
     }
 
     /**
-        Remove all IORBs that belong to the given ThreadCB from 
-	this device's IORB queue
-
-        The method is called when the thread dies and the I/O 
-        operations it requested are no longer necessary. The memory 
-        page used by the IORB must be unlocked and the IORB count for 
-	the IORB's file must be decremented.
-
-	@param thread thread whose I/O is being canceled
-
-        @OSPProject Devices
-    */
-    public void do_cancelPendingIO(ThreadCB thread)
-    {
-        // your code goes here
-        //for each iorb in thread:
-            //unlock buffer page
-            //decrement the IORB count
-            //close the open-file handle in iorb
-                //check for closePending Flag
-                    //if true and getIORBCOUNT() == 0:
-                        //file handle must be close()
-    }
-
-    /** Called by OSP after printing an error message. The student can
-	insert code here to print various tables and data structures
-	in their state just after the error happened.  The body can be
-	left empty, if this feature is not used.
-	
-	@OSPProject Devices
+     * Remove all IORBs that belong to the given ThreadCB from this device's IORB
+     * queue
+     * 
+     * The method is called when the thread dies and the I/O operations it requested
+     * are no longer necessary. The memory page used by the IORB must be unlocked
+     * and the IORB count for the IORB's file must be decremented.
+     * 
+     * @param thread thread whose I/O is being canceled
+     * 
+     * @OSPProject Devices
      */
-    public static void atError()
-    {
+    public void do_cancelPendingIO(ThreadCB thread) {
         // your code goes here
-
+        // for each iorb in thread:
+        // unlock buffer page
+        // decrement the IORB count
+        // close the open-file handle in iorb
+        // check for closePending Flag
+        // if true and getIORBCOUNT() == 0:
+        // file handle must be close()
     }
 
-    /** Called by OSP after printing a warning message. The student
-	can insert code here to print various tables and data
-	structures in their state just after the warning happened.
-	The body can be left empty, if this feature is not used.
-	
-	@OSPProject Devices
+    /**
+     * Called by OSP after printing an error message. The student can insert code
+     * here to print various tables and data structures in their state just after
+     * the error happened. The body can be left empty, if this feature is not used.
+     * 
+     * @OSPProject Devices
      */
-    public static void atWarning()
-    {
+    public static void atError() {
         // your code goes here
 
     }
 
+    /**
+     * Called by OSP after printing a warning message. The student can insert code
+     * here to print various tables and data structures in their state just after
+     * the warning happened. The body can be left empty, if this feature is not
+     * used.
+     * 
+     * @OSPProject Devices
+     */
+    public static void atWarning() {
+        // your code goes here
+
+    }
 
     /*
-       Feel free to add methods/fields to improve the readability of your code
-    */
+     * Feel free to add methods/fields to improve the readability of your code
+     */
 
+    private int getCylinderFromBlockNumber(int blockNumber) {
+        int offsetBits, blockSize, sectorSize, sectorsPerBlock, sectorsPerTrack, blocksPerTrack, totalCylinders,
+                tracksPerCylinders, returnCylinder;
+        /* get constants */
+        sectorSize = getBytesPerSector();
+        sectorsPerTrack = getSectorsPerTrack();
+        tracksPerCylinders = getTracksPerPlatter();
+        totalCylinders = getPlatters();
+
+        /* get the block size */
+        offsetBits = getVirtualAddressBits() - getPageAddressBits();
+        blockSize = (int) Math.pow(2, offsetBits);
+
+        /* get the number of sectors in a block */
+        sectorsPerBlock = blockSize / sectorSize;
+
+        /* get the number of blocks in a track */
+        blocksPerTrack = sectorsPerTrack / sectorsPerBlock;
+
+        /* calculate the cylinder the block number belongs to */
+        returnCylinder = (blockNumber / blocksPerTrack) / totalCylinders;
+        return returnCylinder;
+    }
+
+    private DeviceQueue getQueuePtr() {
+        if (this.queuePtr.isOpen()) {
+            return this.queuePtr;
+        } else {
+            if (changePtrToOpenQueue())
+                return this.queuePtr;
+            else {
+                /* create a new queue */
+                DeviceQueue newQ = new DeviceQueue(queueList.get(queueList.size() - 1).getId() + 1, true);
+                queueList.add(newQ);
+                this.queuePtr = newQ;
+                return this.queuePtr;
+            }
+        }
+    }
+
+    private boolean changePtrToOpenQueue() {
+        for (DeviceQueue q : queueList) {
+            if (q.isOpen()) {
+                this.queuePtr = q;
+                return true;
+            }
+        }
+        /* if here; no queue is open */
+        return false;
+    }
+
+    private void setQueuePtr(DeviceQueue q) {
+        this.queuePtr = q;
+    }
+
+    private void closeCurrentQueuePtr() {
+        this.queuePtr.setOpen(false);
+    }
+
+    private DeviceQueue getNonEmptyQueue() {
+        for (DeviceQueue q : queueList) {
+            if (!q.isEmpty()) {
+                return q;
+            }
+        }
+        return null;
+    }
+
+    /*
+     * Feel free to add local classes to improve the readability of your code
+     */
+
+    /*
+     * Feel free to add local classes to improve the readability of your code
+     */
 }
 
-/*
-      Feel free to add local classes to improve the readability of your code
-*/
+class DeviceQueue extends GenericList {
 
-/*
- * Feel free to add local classes to improve the readability of your code
- */
-class DeviceQueue {
+    private int id;
+    private boolean open;
 
-    private GenericList queue;
-
-    public DeviceQueue() {
-        this.queue = new GenericList();
+    public DeviceQueue(int id, boolean open) {
+        super();
+        this.id = id;
+        this.open = open;
     }
 
-    public boolean isEmpty() {
-        return queue.isEmpty();
+    public boolean isOpen() {
+        return open;
     }
 
-    public final synchronized void pushObjToQueue(Object obj) {
-        queue.insert(obj);
+    public void setOpen(boolean open) {
+        this.open = open;
     }
 
-    public final synchronized Object popObjectFromQueue() {
-        return queue1.removeTail();
+    public int getId() {
+        return id;
     }
 
-    public final synchronized Object removeObjectFromQueue(int queue, ThreadCB obj) {
-        return queue1.remove(obj);
+    /**
+     * Insert the iorb into the sorted Queue based on the cylinder number
+     * 
+     * @param iorb the iorb to insert
+     * 
+     * @OSPProject Devices
+     */
+    public final synchronized void iorbInsert(IORB iorb) {
+        Enumeration e;
+        IORB ptr;
+        if (isEmpty()) {
+            /* make head */
+            insert(iorb);
+            return;
+        } else {
+            /* iterate through list and put in sorted position */
+            e = forwardIterator(getHead());
+            while (e.hasMoreElements()) {
+                ptr = e.nextElement();
+                if (iorb.getCylinder < ptr.getCylinder()) {
+                    prependAtCurrent(iorb);
+                    return;
+                }
+            }
+            /* iterated the entire list */
+            appendToCurrent(iorb);
+            return;
+        }
+
     }
 
 }
