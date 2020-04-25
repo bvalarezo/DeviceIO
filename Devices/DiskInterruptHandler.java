@@ -49,18 +49,19 @@ public class DiskInterruptHandler extends IflDiskInterruptHandler {
      */
     public void do_handleInterrupt() {
         IORB iorb = (IORB) InterruptVector.getEvent(), nextIorb;
-        ThreadCD thread = iorb.getThread();
+        ThreadCB thread = iorb.getThread();
         PageTableEntry page = iorb.getPage();
         OpenFile openFile = iorb.getOpenFile();
+        Device device = Device.get(iorb.getDeviceID());
         boolean isSwapDevice = iorb.getDeviceID() == SwapDeviceID;
         FrameTableEntry frame = page.getFrame();
-        TaskCD task = thread.getTask();
+        TaskCB task = thread.getTask();
 
         /* decrement the iorb count */
         openFile.decrementIORBCount();
 
         /* try to close the open-file handle */
-        if (iorb.getOpenFile().getIORBcount() == 0 && iorb.getOpenFile().closePending)
+        if (iorb.getOpenFile().getIORBCount() == 0 && iorb.getOpenFile().closePending)
             iorb.getOpenFile().close();
 
         /* unlock the page */
@@ -93,17 +94,17 @@ public class DiskInterruptHandler extends IflDiskInterruptHandler {
         }
 
         /* wake up the threads */
-        iorb.notfiyThreads();
+        iorb.notifyThreads();
 
         /* set the device to idle */
-        Device.get(iorb.getDeviceID()).setBusy(false);
+        device.setBusy(false);
 
         /* dequeue a new iorb */
-        nextIorb = Device.get(iorb.getDeviceID().dequeueIORB());
+        nextIorb = device.dequeueIORB();
 
         /* check for non-null */
         if (nextIorb != null)
-            Device.get(iorb.getDeviceID()).startIO(nextIorb);
+            device.startIO(nextIorb);
 
         ThreadCB.dispatch();
     }

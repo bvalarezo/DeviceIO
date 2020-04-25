@@ -93,7 +93,7 @@ public class Device extends IflDevice {
         blockNumber = iorb.getBlockNumber();
 
         /* locking the page */
-        if (page.lock() != SUCCESS)
+        if (page.lock(iorb) != SUCCESS)
             return retval;
 
         /* incrementing the iorb count */
@@ -157,7 +157,7 @@ public class Device extends IflDevice {
         changePtrToOpenQueue();
 
         /* lets get the iorb */
-        returnIORB = q.removeHead();
+        returnIORB = (IORB) q.removeHead();
         return returnIORB;
         // .remove()
         // your code goes here
@@ -191,19 +191,19 @@ public class Device extends IflDevice {
 
         /* iterate through all of the queues */
         for (DeviceQueue deviceQueue : queueList) {
-            e = forwardIterator(getHead());
+            e = deviceQueue.forwardIterator();
             while (e.hasMoreElements()) {
-                ptr = e.nextElement();
+                ptr = (IORB) e.nextElement();
                 /* if this iorb is from the killed thread */
-                if (ptr.getThread().getId() == thread.getId()) {
+                if (ptr.getThread().getID() == thread.getID()) {
                     /* unlock the page */
                     ptr.getPage().unlock();
 
                     /* decrement the iorb count */
-                    ptr.getOpenFile().decrementIorbCount();
+                    ptr.getOpenFile().decrementIORBCount();
 
                     /* try to close the open-file handle */
-                    if (ptr.getOpenFile().getIORBcount() == 0 && ptr.getOpenFile().closePending)
+                    if (ptr.getOpenFile().getIORBCount() == 0 && ptr.getOpenFile().closePending)
                         ptr.getOpenFile().close();
                     /* remove this iorb from the queue's */
                     deviceQueue.remove(ptr);
@@ -251,14 +251,15 @@ public class Device extends IflDevice {
     private int getCylinderFromBlockNumber(int blockNumber) {
         int offsetBits, blockSize, sectorSize, sectorsPerBlock, sectorsPerTrack, blocksPerTrack, totalCylinders,
                 tracksPerCylinders, returnCylinder;
+        Disk d = ((Disk) this);
         /* get constants */
-        sectorSize = getBytesPerSector();
-        sectorsPerTrack = getSectorsPerTrack();
-        tracksPerCylinders = getTracksPerPlatter();
-        totalCylinders = getPlatters();
+        sectorSize = d.getBytesPerSector();
+        sectorsPerTrack = d.getSectorsPerTrack();
+        tracksPerCylinders = d.getTracksPerPlatter();
+        totalCylinders = d.getPlatters();
 
         /* get the block size */
-        offsetBits = getVirtualAddressBits() - getPageAddressBits();
+        offsetBits = MMU.getVirtualAddressBits() - MMU.getPageAddressBits();
         blockSize = (int) Math.pow(2, offsetBits);
 
         /* get the number of sectors in a block */
@@ -366,8 +367,8 @@ class DeviceQueue extends GenericList {
             /* iterate through list and put in sorted position */
             e = forwardIterator(getHead());
             while (e.hasMoreElements()) {
-                ptr = e.nextElement();
-                if (iorb.getCylinder < ptr.getCylinder()) {
+                ptr = (IORB) e.nextElement();
+                if (iorb.getCylinder() < ptr.getCylinder()) {
                     prependAtCurrent(iorb);
                     return;
                 }
